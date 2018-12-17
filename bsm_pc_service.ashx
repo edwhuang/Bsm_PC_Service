@@ -1,0 +1,1 @@
+﻿<%@ WebHandler Class="BSMPCService.bsm_pc_service" Language="C#" CodeBehind="~/App_Code/BSM_PC_Service.cs" %>
