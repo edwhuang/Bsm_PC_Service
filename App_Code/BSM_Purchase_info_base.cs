@@ -653,6 +653,7 @@
         public string _id;
         public string promo_prog_id;
         public string discount_package_id;
+        public string discount_package_cat_id1;
         public decimal amount;
         public decimal discount_amount;
         public decimal extend_days;
@@ -674,6 +675,7 @@
         public Boolean check_client;
         public decimal client_cnt_limit;
         public DateTime expired_date;
+        public DateTime? nobuy_from;
         public Boolean status;
 
 
@@ -685,6 +687,7 @@
         public string _id;
         public string promo_prog_id;
         public string discount_package_id;
+        public string discount_package_cat_id1;
         public string promo_code;
         public Boolean status;
         public decimal amount;
@@ -698,6 +701,7 @@
         public Boolean check_client;
         public DateTime start_date;
         public DateTime end_date;
+        public DateTime? nobuy_from;
     }
 
     public class promotion_clients
@@ -1339,7 +1343,7 @@ select b.PACKAGE_CAT1,
             return _result;
         }
  
-        private List<package_info> get_all_package()
+        public List<package_info> get_all_package()
         {
             init_cht_parame();
             List<package_option>    _all_package_options =get_all_package_option();
@@ -3979,9 +3983,9 @@ from STK_PACKAGE_ITEM a where a.PACKAGE_ID=:P_PACKAGE_ID";
 
              try
              {
-                 string _sql = @"Select c.PROMO_PROG_ID,b.PROMO_TITLE,c.start_date,c.end_date,b.DISCOUNT_PACKAGE_ID,b.AMT,b.DISCOUNT_AMT,b.PROMO_PROG_TYPE,NVL(b.EXTEND_DAYS,0) EXTEND_DAYS,b.PROMO_INFO,c.prog_limit
-from promotion_prog_item b,promotion_prog_mas c
-where c.promo_prog_id=b.promo_prog_id";
+                 string _sql = @"Select c.PROMO_PROG_ID,b.PROMO_TITLE,c.start_date,c.end_date,b.DISCOUNT_PACKAGE_ID,b.AMT,b.DISCOUNT_AMT,b.PROMO_PROG_TYPE,NVL(b.EXTEND_DAYS,0) EXTEND_DAYS,b.PROMO_INFO,c.prog_limit,d.package_cat_id1
+from promotion_prog_item b,promotion_prog_mas c,bsm_package_mas d
+where c.promo_prog_id=b.promo_prog_id and d.package_id(+)=b.discount_package_id";
  
 
                  OracleCommand _cmd = new OracleCommand(_sql, conn);
@@ -4004,21 +4008,14 @@ where c.promo_prog_id=b.promo_prog_id";
                      _promotion_code_prog.promo_title = Convert.ToString(_rd["PROMO_TITLE"]);
                      _promotion_code_prog.start_date = Convert.ToDateTime(_rd["START_DATE"]);
                      _promotion_code_prog.end_date = Convert.ToDateTime(_rd["END_DATE"]);
+                     _promotion_code_prog.discount_package_cat_id1 = Convert.ToString(_rd["PACKAGE_CAT_ID1"]);
                      _promotion_code_prog.prog_limit = _rd["PROG_LIMIT"]==DBNull.Value ?0:Convert.ToDecimal(_rd["PROG_LIMIT"]);
-                     
- 
                      _promotion_code_prog._id = _promotion_code_prog.promo_prog_id + "+"+ _promotion_code_prog.discount_package_id;
-                 //    _promotion_code_prog.status = true;
-
-                 //    promotion_code_collection.Save(_promotion_info);
-
                      _l_promo.Add(_promotion_code_prog);
 
                  }
                  if (_l_promo.Count > 0)
                  {
-
-
                      promotion_prog_collection.InsertBatch(_l_promo);
                  }
              }
@@ -4041,7 +4038,8 @@ where c.promo_prog_id=b.promo_prog_id";
             {
                 string _sql = @"Select a.PROMO_PROG_ID,a.PROMO_CODE,a.STATUS_FLG,LIMIT,CLIENT_LIMIT CLIENT_CNT_LIMIT,
 (SELECT COUNT(*) FROM BSM_PROMOTION_CLIENTS d where d.promo_code=a.promo_code) client_limit,
-a.OWNER 
+a.OWNER,
+a.NOBUY_FROM
 from PROMOTION_MAS a
 where a.STATUS_FLG='P'";
                 if (!(client_id == null))
@@ -4064,6 +4062,7 @@ where a.STATUS_FLG='P'";
                     _promotion_info.promo_prog_id = Convert.ToString(_rd["PROMO_PROG_ID"]);
                     _promotion_info.promo_code = Convert.ToString(_rd["PROMO_CODE"]);
                     _promotion_info.owner = Convert.ToString(_rd["OWNER"]);
+                    _promotion_info.nobuy_from = _rd["NOBUY_FROM"] == DBNull.Value ? (DateTime?) null : Convert.ToDateTime(_rd["NOBUY_FROM"]);
                     _promotion_info.client_cnt_limit = _rd["CLIENT_CNT_LIMIT"] == DBNull.Value ? 0 : Convert.ToDecimal(_rd["CLIENT_CNT_LIMIT"]);
                 
                     if (Convert.ToDecimal(_rd["CLIENT_LIMIT"]) > 0)
@@ -4142,9 +4141,11 @@ where a.STATUS_FLG='P'";
                     _r.promo_title = _p.promo_title;
                     _r.start_date = _p.start_date;
                     _r.end_date = _p.end_date;
+                    _r.nobuy_from = _c.nobuy_from;
                     _r.amount = _p.amount;
                     _r.discount_amount = _p.discount_amount;
                     _r.discount_package_id = _p.discount_package_id;
+                    _r.discount_package_cat_id1 = _p.discount_package_cat_id1;
                     _r.check_client = _c.check_client;
                     _r.client_cnt_limit = _c.client_cnt_limit;
 
