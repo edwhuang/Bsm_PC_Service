@@ -3958,11 +3958,15 @@ from STK_PACKAGE_ITEM a where a.PACKAGE_ID=:P_PACKAGE_ID";
             if (product_code == "SHARP9999")
             {
                 promotion1 = get_promotion_product("TV0001");
-
             }
             else
             {
-                promotion1 = get_promotion_product("PRO5");
+                promotion1 = get_promotion_product(product_code);
+
+                if (promotion1 == null || promotion1.Count== 0)
+                {
+                    promotion1 = get_promotion_product("PRO5");
+                }
             }
             _result.Add(promotion1);
             return _result;
