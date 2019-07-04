@@ -387,6 +387,43 @@ namespace BSM
         }
     }
 
+    public class IOS_ReceiptInfo
+    {
+        public string original_purchase_date_pst { get; set; }
+        public string quantity { get; set; }
+        public string unique_vendor_identifier { get; set; }
+        public string bvrs { get; set; }
+        public string expires_date_formatted { get; set; }
+        public string is_in_intro_offer_period { get; set; }
+        public string purchase_date_ms { get; set; }
+        public string expires_date_formatted_pst { get; set; }
+        public string is_trial_period { get; set; }
+        public string item_id { get; set; }
+        public string unique_identifier { get; set; }
+        public string original_transaction_id { get; set; }
+        public string expires_date { get; set; }
+        public string app_item_id { get; set; }
+        public string transaction_id { get; set; }
+        public string web_order_line_item_id { get; set; }
+        public string version_external_identifier { get; set; }
+        public string product_id { get; set; }
+        public string purchase_date { get; set; }
+        public string original_purchase_date { get; set; }
+        public string purchase_date_pst { get; set; }
+        public string bid { get; set; }
+        public string original_purchase_date_ms { get; set; }
+    }
+
+    public class IOS_Result
+    {
+        public int? auto_renew_status { get; set; }
+        public int? status { get; set; }
+        public string auto_renew_product_id { get; set; }
+        public IOS_ReceiptInfo receipt { get; set; }
+        public IOS_ReceiptInfo latest_receipt_info { get; set; }
+        public object latest_receipt { get; set; }
+    }
+
     public class BSM_Purchase_Service_base
     {
         public OracleConnection conn;
@@ -652,7 +689,7 @@ namespace BSM
         /// <returns></returns>
         [JsonRpcMethod("purchase")]
         [JsonRpcHelp("Client 購買")]
-        public BSM_Result purchase(string token, string device_id, string sw_version, BSM_Purchase_Request purchase_info, JsonObject cht_params, string otpw, string authority)
+        public BSM_Result purchase(string token, string device_id, string sw_version, BSM_Purchase_Request purchase_info, JsonObject cht_params, string otpw, string authority, string user_agent, string browser_type)
         {
             BSM_Result result;
             result = new BSM_Result();
@@ -760,6 +797,9 @@ namespace BSM
 
                 _option.Add("order", purchase_info.order);
                 _option.Add("promo_code", purchase_info.promo_code);
+                _option.Add("user_agent",user_agent);
+                _option.Add("browser_type", browser_type);
+                
 
 
                 v_option = JsonConvert.ExportToString(_option);
@@ -899,7 +939,12 @@ namespace BSM
                         result.result_code = bsm_result.RESULT_CODE;
                         result.result_message = bsm_result.RESULT_MESSAGE;
                         result.purchase_id = bsm_purchase.MAS_NO;
-                        result.purchase_list = (result.purchase_id == null) ? null : (from a in _info_base.cache_client_purchase(purchase_info.client_id, true).purchases where a.purchase_id == result.purchase_id select a).ToList();
+                        result.purchase_list = (result.purchase_id == null) ? new List<BSM_Info.purchase_info>() : (from a in _info_base.cache_client_purchase(purchase_info.client_id, true).purchases where a.purchase_id == result.purchase_id select a).ToList();
+                        if (result.purchase_list == null || result.purchase_list.Count <= 0)
+                        {
+                            result.purchase_list = (result.purchase_id == null) ? new List<BSM_Info.purchase_info>() : (from a in _info_base.get_purchase_info(purchase_info.client_id, null,null) where a.purchase_id == result.purchase_id select a).ToList();
+                        
+                        }
 
                         this.set_invoice_gift(v_gift_tax_flg, bsm_purchase.MAS_NO);
                     }
