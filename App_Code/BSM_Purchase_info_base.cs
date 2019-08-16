@@ -2078,8 +2078,8 @@ select b.PACKAGE_CAT1,
                                 purchase_detail v_purchase_detail = new purchase_detail();
                                 v_purchase_detail.package_id = Convert.ToString(v_Data_Reader_d2["PACKAGE_ID"]);
                                 v_purchase_detail.catalog_description = Convert.ToString(v_Data_Reader_d2["CATALOG_DESCRIPTION"]);
-                                v_purchase_detail.price = Convert.ToDecimal(v_Data_Reader_d2["AMOUNT"]);
-                                v_purchase_detail.orig_price = Convert.ToDecimal(v_Data_Reader_d2["AMOUNT"]);
+                                v_purchase_detail.price = v_Data_Reader_d2.IsDBNull(v_Data_Reader_d2.GetOrdinal("AMOUNT")) ? 0 : Convert.ToDecimal(v_Data_Reader_d2["AMOUNT"]);
+                                v_purchase_detail.orig_price = v_Data_Reader_d2.IsDBNull(v_Data_Reader_d2.GetOrdinal("AMOUNT")) ? 0 : Convert.ToDecimal(v_Data_Reader_d2["AMOUNT"]);
                                 v_purchase_info.details.Add(v_purchase_detail);
                             }
                         }
@@ -4456,7 +4456,7 @@ where a.STATUS_FLG='P'";
             return _result;
         }
 
-        private string HttpRequest(string url, JsonObject postData)
+        public string HttpRequest(string url, JsonObject postData)
         {
 
             string _result;

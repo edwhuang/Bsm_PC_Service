@@ -387,43 +387,6 @@ namespace BSM
         }
     }
 
-    public class IOS_ReceiptInfo
-    {
-        public string original_purchase_date_pst { get; set; }
-        public string quantity { get; set; }
-        public string unique_vendor_identifier { get; set; }
-        public string bvrs { get; set; }
-        public string expires_date_formatted { get; set; }
-        public string is_in_intro_offer_period { get; set; }
-        public string purchase_date_ms { get; set; }
-        public string expires_date_formatted_pst { get; set; }
-        public string is_trial_period { get; set; }
-        public string item_id { get; set; }
-        public string unique_identifier { get; set; }
-        public string original_transaction_id { get; set; }
-        public string expires_date { get; set; }
-        public string app_item_id { get; set; }
-        public string transaction_id { get; set; }
-        public string web_order_line_item_id { get; set; }
-        public string version_external_identifier { get; set; }
-        public string product_id { get; set; }
-        public string purchase_date { get; set; }
-        public string original_purchase_date { get; set; }
-        public string purchase_date_pst { get; set; }
-        public string bid { get; set; }
-        public string original_purchase_date_ms { get; set; }
-    }
-
-    public class IOS_Result
-    {
-        public int? auto_renew_status { get; set; }
-        public int? status { get; set; }
-        public string auto_renew_product_id { get; set; }
-        public IOS_ReceiptInfo receipt { get; set; }
-        public IOS_ReceiptInfo latest_receipt_info { get; set; }
-        public object latest_receipt { get; set; }
-    }
-
     public class BSM_Purchase_Service_base
     {
         public OracleConnection conn;
