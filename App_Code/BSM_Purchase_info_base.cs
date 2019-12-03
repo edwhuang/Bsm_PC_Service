@@ -210,7 +210,7 @@
         public string purchase_id;
         public string card_no;
         public string pay_type;
-        public decimal amount;
+        public decimal? amount;
         public decimal orig_amount;
         public decimal pay_status;
         public string pay_due_date;
@@ -773,7 +773,9 @@
             _MongoServer = _Mongoclient.GetServer();
             _MongoDB = _MongoServer.GetDatabase(MongoDB_Database + "PCPackageInfo");
 
-            _MongoDbconnectionStringMaster = "mongodb://172.23.200.107:27017,172.23.200.106:27017/?connect=replicaset;replicaSet=bsmDBrs;slaveOk=true;readPreference=primaryPreferred";
+            _MongoDbconnectionStringMaster = _MongoDbconnectionString.Replace("readPreference=SecondaryPreferred", "readPreference=primaryPreferred");
+
+           // _MongoDbconnectionStringMaster = "mongodb://172.23.200.107:27017,172.23.200.106:27017/?connect=replicaset;replicaSet=bsmDBrs;slaveOk=true;readPreference=primaryPreferred";
             _MongoclientMaster = new MongoClient(_MongoDbconnectionStringMaster);
             _MongoServerMaster = _MongoclientMaster.GetServer();
             _MongoDBMaster = _MongoServerMaster.GetDatabase(MongoDB_Database + "PCPackageInfo");
@@ -1055,29 +1057,40 @@ hide,software_group,sort_no from bsm_package_group_mas a order by sort_no";
             List<client_detail> _result = new List<client_detail>();
             connectDB();
 
-            string _sql = @"select t3.pay_type,t.src_no,to_char(trunc(t.start_date),'yyyy/mm/dd')  start_date,
-        to_char(trunc(t.end_date),'yyyy/mm/dd') end_date,
-       decode(t.start_date,null,'未啟用',decode(sign(end_date-sysdate),1,'已啟用','已到期') ) package_status,
+            string _sql = @"select t3.pay_type,
+       t.src_no,
+       to_char(trunc(t.start_date), 'yyyy/mm/dd') start_date,
+       to_char(trunc(t.end_date), 'yyyy/mm/dd') end_date,
+       decode(t.start_date,
+              null,
+              '未啟用',
+              decode(sign(t.end_date - sysdate), 1, '已啟用', '已到期')) package_status,
        t2.package_start_date_desc,
-       t2.package_end_date_desc ,
-       decode(t.start_date,null,'N',decode(sign(end_date-sysdate),1,'Y','N') ) used,
+       t2.package_end_date_desc,
+       decode(t.start_date,
+              null,
+              'N',
+              decode(sign(t.end_date - sysdate), 1, 'Y', 'N')) used,
        t2.package_id,
-        t2.package_cat_id1,
-decode(BSM_RECURRENT_UTIL.check_recurrent(t2.package_cat_id1, :CLIENT_ID,:DEVICE_ID),'Y','R','O') recurrent
-
-   from bsm_client_details t,bsm_package_mas t2 ,bsm_purchase_mas t3
-  where t.status_flg = 'P'
-  and t2.package_id=t.package_id
-  and t3.mas_no(+) = t.src_no
-  and t2.acl_period_duration is null 
- and t.mac_address =:client_id
-and (t.device_id is null or t.device_id = :device_id) 
-order by end_date";
+       t2.package_cat_id1,
+       case when t4.status_flg='P' then
+         'R'
+       else
+         'O'
+       end recurrent
+  from bsm_client_details t, bsm_package_mas t2, bsm_purchase_mas t3,bsm_recurrent_mas t4
+ where t.status_flg = 'P'
+   and t2.package_id = t.package_id
+   and t3.mas_no(+) = t.src_no
+   and t2.acl_period_duration is null
+   and t.mac_address = :CLIENT_ID
+   and t4.src_pk_no (+) = t3.pk_no
+ order by end_date";
 
             OracleCommand _cmd = new OracleCommand(_sql, conn);
             _cmd.BindByName = true;
             _cmd.Parameters.Add("CLIENT_ID", client_id);
-            _cmd.Parameters.Add("DEVICE_ID", device_id);
+         //   _cmd.Parameters.Add("DEVICE_ID", device_id);
             OracleDataReader _rd = _cmd.ExecuteReader();
             while (_rd.Read())
             {
@@ -1155,7 +1168,7 @@ Select case when cal_type = 'T' then
         t2.package_cat_id1
          from bsm_client_details t,bsm_package_mas t2
  where t.status_flg = 'P'
-   and t.package_id in (Select t2.package_id from bsm_package_mas t2 where system_type <> 'CLIENT_ACTIVED')
+   and t.package_id in (Select t2.package_id from bsm_package_mas t2 where system_type not in ( 'CLIENT_ACTIVED','FREE','SYSTEM'))
    and t2.package_id= t.package_id
    and t.mac_address=:CLIENT_ID
    and ((t2.cal_type ='T' and t.end_date >=sysdate) or (t2.cal_type <> 'T')) 
@@ -1627,7 +1640,7 @@ select b.PACKAGE_CAT1,
                         _a.end_date = (end_date == "" || end_date == null) ? end_date_desc : end_date;
                         _a.use_status = used ?? "N";
                         _a.status_description = package_status ?? "未購買";
-                        _a.current_recurrent_status = ((from a in _detail_packages where a.recurrent == "R" select a).Count() > 0) ? "R" : "O";
+                        _a.current_recurrent_status = ((from a in _detail_packages where a.recurrent == "R" && a.package_id==_a.package_id select a).Count() > 0) ? "R" : "O";
                         _a.next_pay_date = (_a.current_recurrent_status == "R") ? end_date : null;
 
                         _a.enable = ((from a in _detail_packages where a.src_pay_type == "中華電信帳單" select a).Count() > 0 && _a.current_recurrent_status == "R") ? false : (_a.current_recurrent_status == "R" && _a.recurrent == "R") ? false : true;
@@ -2184,14 +2197,14 @@ select b.PACKAGE_CAT1,
        nvl(a.tax_gift,'N') tax_gift,
        '' title,
        d.cal_type,
-       (select to_char(F_INVO_DATE, 'YYYY/MM/DD')
+       NVL(TO_CHAR(TAX_INV_DATE,'YYYY/MM/DD'),(select to_char(F_INVO_DATE, 'YYYY/MM/DD')
           from tax_inv_mas inv
          where inv.f_invo_no = a.tax_inv_no
-           and rownum <= 1) INVO_DATE,
-       (select IDENTIFY_ID
+           and rownum <= 1)) INVO_DATE,
+       NVL((select IDENTIFY_ID
           from tax_inv_mas inv
          where inv.f_invo_no = a.tax_inv_no
-           and rownum <= 1) INVO_IDENTIFY_ID,
+           and rownum <= 1),'N') INVO_IDENTIFY_ID,
        decode(a.cost_credits,
               '',
               '',
@@ -2443,10 +2456,10 @@ select b.PACKAGE_CAT1,
                                 }
                                 else
                                 {
-                                    v_purchase_info.invoice_no = v_Data_Reader.GetString(15);
-                                    v_purchase_info.invoice_date = v_Data_Reader.GetString(19);
-                                    v_purchase_info.invoice_einv_id = v_Data_Reader.GetString(20);
-                                    v_purchase_info.invoice_gift_flg = v_Data_Reader.GetString(16);
+                                    v_purchase_info.invoice_no = Convert.ToString(v_Data_Reader["TAX_INV_NO"]);
+                                    v_purchase_info.invoice_date = Convert.ToString(v_Data_Reader["INVO_DATE"]);
+                                    v_purchase_info.invoice_einv_id = Convert.ToString(v_Data_Reader["INVO_IDENTIFY_ID"]);
+                                    v_purchase_info.invoice_gift_flg = Convert.ToString(v_Data_Reader["TAX_GIFT"]);
                                 }
                             }
 

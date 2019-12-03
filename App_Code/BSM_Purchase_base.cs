@@ -212,6 +212,8 @@ namespace BSM
 
         public JsonObject order;
 
+        public JsonObject extra;
+
         public Purchase_Message_Response[] box_responses;
 
         public BSM_Purchase_Request()
@@ -760,6 +762,7 @@ namespace BSM
 
                 _option.Add("order", purchase_info.order);
                 _option.Add("promo_code", purchase_info.promo_code);
+                _option.Add("extra", purchase_info.extra);
                 _option.Add("user_agent",user_agent);
                 _option.Add("browser_type", browser_type);
                 
@@ -895,6 +898,14 @@ namespace BSM
                         if (result.purchase_id == null)
                         {
                             result.purchase_id = "PURXXXXXXXXXXXXXX";
+                        }
+                        else
+                        {
+                            if (result.purchase_list == null || result.purchase_list.Count <= 0)
+                            {
+                                result.purchase_list = (result.purchase_id == null) ? new List<BSM_Info.purchase_info>() : (from a in _info_base.get_purchase_info(purchase_info.client_id, null, null) where a.purchase_id == result.purchase_id select a).ToList();
+
+                            }
                         }
                     }
                     else
