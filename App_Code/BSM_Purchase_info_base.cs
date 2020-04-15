@@ -1905,7 +1905,7 @@ select b.PACKAGE_CAT1,
   "Order by purchase_date desc, purchase_id desc ";
 
                 _sql_dtl = "select e.mas_pk_no,decode(d.cal_type,'T',c.package_name,d.package_cat1) catalog_description, decode(c.start_date,null,'未啟用',decode(sign(end_date - sysdate), 1, '已啟用', '已到期')) status_description," +
-  "to_char(nvl(e.service_start_date,c.start_date), 'YYYY/MM/DD') start_date,to_char(nvl(e.service_end_date,c.end_date), 'YYYY/MM/DD') end_date,nvl(c.package_name,d.description) package_name,e.package_id,e.price,d.price_des ,d.charge_amount orig_amount,e.package_dtls " +
+  "to_char(nvl(e.service_start_date,c.start_date), 'YYYY/MM/DD') start_date,to_char(nvl(e.service_end_date,c.end_date), 'YYYY/MM/DD') end_date,nvl(c.package_name,decode(d.ref3,null,d.description,d.description||' '||d.ref3)) package_name,e.package_id,e.price,d.price_des ,d.charge_amount orig_amount,e.package_dtls " +
   " from bsm_purchase_mas   a, " +
   "     bsm_purchase_item  e, " +
   "     bsm_client_details c, " +
@@ -1948,10 +1948,7 @@ select b.PACKAGE_CAT1,
                         v_purchase_info.pay_type = hinet_pay.Contains(Convert.ToString(v_Data_Reader["PAY_TYPE"])) ? "C_" + Convert.ToString(v_Data_Reader["CHT_AUTH"]).ToUpper() : Convert.ToString(v_Data_Reader["PAY_TYPE"]);
                         v_purchase_info.bank_code = Convert.ToString(v_Data_Reader["PAY_TYPE"]) == "中華電信ATM" ? "004" : "812";
 
-                        if (!v_Data_Reader.IsDBNull(6))
-                        {
-                            v_purchase_info.amount = Convert.ToDecimal(v_Data_Reader["AMOUNT"]);
-                        }
+                        v_purchase_info.amount = v_Data_Reader["AMOUNT"] == DBNull.Value ? 0 : Convert.ToDecimal(v_Data_Reader["AMOUNT"]);
 
                         v_purchase_info.orig_amount = v_Data_Reader["ORIG_AMOUNT"] == DBNull.Value ? 0 : Convert.ToDecimal(v_Data_Reader["ORIG_AMOUNT"]);
 
@@ -2154,7 +2151,7 @@ select b.PACKAGE_CAT1,
         {
 
             List<purchase_info_list> v_result = new List<purchase_info_list>();
-            client_id = client_id.ToUpper();
+            client_id = client_id.ToUpper(); 
 
             connectDB();
             try
@@ -2164,7 +2161,7 @@ select b.PACKAGE_CAT1,
 
                 _sql = @"Select
        d.package_cat1 cat_description,
-       nvl(c.package_name, d.description)||
+       nvl(c.package_name, decode(d.ref3,null,d.description,d.description||' '||d.ref3))||
        (select ' '||promo_title from promotion_prog_item x where x.promo_prog_id=a.promo_prog_id and x.discount_package_id=e.package_id) package_name,
        to_char(a.purchase_date, 'YYYY/MM/DD') purchase_date,
        d.price_des,
@@ -2266,10 +2263,11 @@ select b.PACKAGE_CAT1,
                cal_type,
                system_type,
                package_cat_id1,
-               logo
+               logo,
+               ref3
           from bsm_package_mas
        union all
-         select package_id,package_name,'','',to_char(amount)||'元','','','P','OPTION','','' from stk_package_mas where package_type <> 'COUPON') d
+         select package_id,package_name,'','',to_char(amount)||'元','','','P','OPTION','','','' from stk_package_mas where package_type <> 'COUPON') d
  where e.mas_pk_no = a.pk_no
    and c.src_pk_no(+) = e.mas_pk_no
    and c.src_item_pk_no(+) = e.pk_no
