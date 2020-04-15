@@ -4145,9 +4145,12 @@ where a.STATUS_FLG='P'";
                     promotion_code_collection.InsertBatch(_l_promo);
                 }
 
-                if (client_id == null)
+                string _sql_client = @"SELECT PROMO_CODE,CLIENT_ID,STATUS_FLG FROM BSM_PROMOTION_CLIENTS WHERE 1=1";
+                if (!(client_id == null))
                 {
-                    string _sql_client = @"SELECT PROMO_CODE,CLIENT_ID,STATUS_FLG FROM BSM_PROMOTION_CLIENTS";
+                _sql_client = @_sql_client+" AND Client_ID='"+client_id+"'";
+                }
+                   
                     OracleCommand _cmd2 = new OracleCommand(_sql_client, conn);
                     _cmd.BindByName = true;
                     OracleDataReader _rd2 = _cmd2.ExecuteReader();
@@ -4162,11 +4165,12 @@ where a.STATUS_FLG='P'";
                             _promo_clients.status_flg = true;
                         }
                         _promo_clients._id = _promo_clients.promo_code + "+" + _promo_clients.client_id;
-                        _l_promo_cliens.Add(_promo_clients);
+                        promotion_client_collection.Save(_promo_clients);
+                      //  _l_promo_cliens.Add(_promo_clients);
                     }
-                    if (_l_promo_cliens.Count > 0)
-                        promotion_client_collection.InsertBatch(_l_promo_cliens);
-                }
+                  //  if (_l_promo_cliens.Count > 0)
+                  //      promotion_client_collection.InsertBatch(_l_promo_cliens);
+                
             }
             finally
             {
