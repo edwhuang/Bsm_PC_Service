@@ -736,6 +736,17 @@
         }
     }
 
+    public class acg_post_log
+    {
+        public ObjectId _id;
+        public DateTime eventtime;
+        public string url;
+        public string request;
+        public string result;
+        public string status;
+        
+    }
+
 
 
     public class BSM_Info_Service_base
@@ -4458,6 +4469,7 @@ where a.STATUS_FLG='P'";
             return _result;
         }
 
+        
         private string postACG(string p_method, JsonObject p_params)
         {
 
@@ -4470,15 +4482,21 @@ where a.STATUS_FLG='P'";
             _result = HttpRequest(acg_url, js_rpc);
             return _result;
         }
-
         public string HttpRequest(string url, JsonObject postData)
+        {
+            return HttpRequest(url, postData, 0);
+        }
+        public string HttpRequest(string url, JsonObject postData,int retry)
         {
 
             string _result;
+            string _post_data = JsonConvert.ExportToString(postData);
+            var acg_collection = _MongoClientInfoDB.GetCollection<acg_post_log>("ACG_POST_LOG");
             try
             {
+                logger.Info(url+" "+postData);
                 ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
-                string _post_data = JsonConvert.ExportToString(postData);
+
                 logger.Info(_post_data);
 
                 var jsonBytes = Encoding.ASCII.GetBytes(_post_data);
@@ -4510,11 +4528,46 @@ where a.STATUS_FLG='P'";
                     }
                 }
                 logger.Info(_result);
+                acg_post_log acg_log = new acg_post_log();
+                try
+                {
+                    JsonObject j = (JsonObject)JsonConvert.Import(_result);
+                    JsonObject j2 = (JsonObject) j["result"];
+
+                    acg_log.status = j2["error_code"].ToString();
+                }
+                catch (Exception e2)
+                {
+                    acg_log.status = "F";
+                }
+                acg_log.eventtime = DateTime.Now;
+                acg_log.url = url;
+                acg_log.request = _post_data;
+                acg_log.result = _result;
+                acg_collection.Save(acg_log);
+
+
                 return _result;
             }
             catch (Exception e)
             {
                 logger.Info(e.Message);
+
+                if (retry <= 1)
+                {
+                    return  HttpRequest(url, postData, retry+1);
+                }
+                else
+                {
+                acg_post_log acg_log = new acg_post_log();
+                acg_log._id =  new ObjectId();
+                acg_log.eventtime = DateTime.Now;
+                acg_log.url = url;
+                acg_log.request = _post_data;
+                acg_log.result = e.Message;
+                acg_log.status = "F";
+                acg_collection.Save(acg_log);
+                }
                 return e.Message;
             }
         }
