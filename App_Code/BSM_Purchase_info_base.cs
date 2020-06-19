@@ -4325,7 +4325,6 @@ where a.STATUS_FLG='P'";
         public void refresh_client(string client_id)
         {
             this._client_info = cache_client_purchase(client_id, true);
-            var b = saveACGClientServiceInfo(client_id, this._client_info);
             set_promotion_code(client_id);
         }
 

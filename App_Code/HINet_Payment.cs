@@ -30,8 +30,8 @@ public class HINet_Payment : JsonRpcHandler
 		// TODO: 在此加入建構函式的程式碼
 		//
         logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        _cht_server_name = "https://aaav2.hinet.net";
-       // _cht_server_name = "https://aaatest.hinet.net";
+         _cht_server_name = "https://aaav2.hinet.net";
+      //  _cht_server_name = "https://aaatest.hinet.net";
 	}
 
     public class hinet_result

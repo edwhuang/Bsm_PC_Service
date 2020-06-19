@@ -296,7 +296,7 @@ namespace Hinet
             {
                 // 設定 HTTPS 連線時，不要理會憑證的有效性問題
                 ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(ValidateServerCertificate);
-
+                System.Net.ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
                 TimeoutWebClient webClient = new TimeoutWebClient(30000);
                 ServicePointManager.DefaultConnectionLimit = 256;
                 WebRequest.DefaultWebProxy = null;
@@ -324,6 +324,7 @@ namespace Hinet
             {
                 // 設定 HTTPS 連線時，不要理會憑證的有效性問題
                 ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(ValidateServerCertificate);
+                System.Net.ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
 
                 TimeoutWebClient webClient = new TimeoutWebClient(30000);
                 ServicePointManager.DefaultConnectionLimit = 256;
