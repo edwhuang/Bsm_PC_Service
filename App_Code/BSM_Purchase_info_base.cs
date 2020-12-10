@@ -1652,6 +1652,17 @@ select b.PACKAGE_CAT1,
                         _a.use_status = used ?? "N";
                         _a.status_description = package_status ?? "未購買";
                         _a.current_recurrent_status = ((from a in _detail_packages where a.recurrent == "R" && a.package_id==_a.package_id select a).Count() > 0) ? "R" : "O";
+                        string[] l_packages = { "XD0001", "XD0012","XD0007"};
+                        if (!Array.Exists<string>(l_packages, eml => eml == _a.package_id))
+                        {
+                            _a.current_recurrent_status = ((from a in _client_details where a.recurrent == "R" && Array.Exists<string>(l_packages, eml => eml == a.package_id) select a).Count() > 0) ? "R" : _a.current_recurrent_status;
+                        }
+                        else
+                        {
+                            _a.current_recurrent_status = ((from a in _client_details where a.recurrent == "R" &&  a.package_id== "XD0012" select a).Count() > 0) ? "R" : _a.current_recurrent_status;
+                        
+
+                        }
                         _a.next_pay_date = (_a.current_recurrent_status == "R") ? end_date : null;
 
                         _a.enable = ((from a in _detail_packages where a.src_pay_type == "中華電信帳單" select a).Count() > 0 && _a.current_recurrent_status == "R") ? false : (_a.current_recurrent_status == "R" && _a.recurrent == "R") ? false : true;
