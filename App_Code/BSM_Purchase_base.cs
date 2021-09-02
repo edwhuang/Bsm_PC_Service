@@ -923,6 +923,10 @@ namespace BSM
                         this.set_invoice_gift(v_gift_tax_flg, bsm_purchase.MAS_NO);
                     }
                 }
+                catch(Exception e)
+                {
+                     logger.Info(e.Message);
+                }
                 finally
                 {
                     conn.Close();

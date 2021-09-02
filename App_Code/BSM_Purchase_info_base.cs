@@ -1142,7 +1142,7 @@ hide,software_group,sort_no from bsm_package_group_mas a order by sort_no";
             {
                 _sql = @"with cte as (
 Select case when cal_type = 'T' then
-              t.package_name 
+              nvl(t.package_name,t2.package_cat1) 
             else
               t2.package_cat1
             end package_cat1,
@@ -1190,7 +1190,7 @@ Select case when cal_type = 'T' then
    
  group by
           case when cal_type = 'T' then
-              t.package_name 
+              nvl(t.package_name,t2.package_cat1) 
             else
               t2.package_cat1
             end ,
@@ -1651,15 +1651,21 @@ select b.PACKAGE_CAT1,
                         _a.end_date = (end_date == "" || end_date == null) ? end_date_desc : end_date;
                         _a.use_status = used ?? "N";
                         _a.status_description = package_status ?? "未購買";
-                        _a.current_recurrent_status = ((from a in _detail_packages where a.recurrent == "R" && a.package_id==_a.package_id select a).Count() > 0) ? "R" : "O";
-                        string[] l_packages = { "XD0001", "XD0012","XD0007"};
+                        _a.current_recurrent_status = ((from a in _detail_packages where a.recurrent == "R" && a.cat_id == _a.catalog_id select a).Count() > 0) ? "R" : "O";
+                        string[] y_packages = { "W00012", "W00013", "CD0012", "CD0013" };
+                        if (Array.Exists<string>(y_packages,eml=>eml==_a.package_id))
+                        {
+                            _a.current_recurrent_status = ((from a in _detail_packages where a.recurrent == "R" && a.package_id == _a.package_id select a).Count() > 0) ? "R" : "O";
+                        }
+                        string[] l_packages = { "XD0001", "XD0012", "XD0007", "XD0016", "XD0013","XD0002",  };
+                        string[] l2_packages = { "XD0012", "XD0016", "XD0013"};
                         if (!Array.Exists<string>(l_packages, eml => eml == _a.package_id))
                         {
                             _a.current_recurrent_status = ((from a in _client_details where a.recurrent == "R" && Array.Exists<string>(l_packages, eml => eml == a.package_id) select a).Count() > 0) ? "R" : _a.current_recurrent_status;
                         }
                         else
                         {
-                            _a.current_recurrent_status = ((from a in _client_details where a.recurrent == "R" &&  a.package_id== "XD0012" select a).Count() > 0) ? "R" : _a.current_recurrent_status;
+                            _a.current_recurrent_status = ((from a in _client_details where a.recurrent == "R" && Array.Exists<string>(l2_packages, eml => eml == a.package_id) select a).Count() > 0) ? "R" : _a.current_recurrent_status;
                         
 
                         }
@@ -1927,7 +1933,7 @@ select b.PACKAGE_CAT1,
   "Order by purchase_date desc, purchase_id desc ";
 
                 _sql_dtl = "select e.mas_pk_no,decode(d.cal_type,'T',c.package_name,d.package_cat1) catalog_description, decode(c.start_date,null,'未啟用',decode(sign(end_date - sysdate), 1, '已啟用', '已到期')) status_description," +
-  "to_char(nvl(e.service_start_date,c.start_date), 'YYYY/MM/DD') start_date,to_char(nvl(e.service_end_date,c.end_date), 'YYYY/MM/DD') end_date,nvl(c.package_name,decode(d.ref3,null,d.description,d.description||' '||d.ref3)) package_name,e.package_id,e.price,d.price_des ,d.charge_amount orig_amount,e.package_dtls " +
+  "to_char(nvl(e.service_start_date,c.start_date), 'YYYY/MM/DD') start_date,to_char(nvl(e.service_end_date,c.end_date), 'YYYY/MM/DD') end_date,nvl(c.package_name,decode(d.ref3,null,d.description,d.description||' '||d.ref3)) package_name,e.package_id,e.price,nvl(e.price_desc,d.price_des) price_des ,d.charge_amount orig_amount,e.package_dtls " +
   " from bsm_purchase_mas   a, " +
   "     bsm_purchase_item  e, " +
   "     bsm_client_details c, " +
@@ -2045,7 +2051,7 @@ select b.PACKAGE_CAT1,
                                     v_purchase_detail.price = v_Data_Reader_d.GetDecimal(7);
                                 }
                                 v_purchase_detail.orig_price = v_Data_Reader_d["ORIG_AMOUNT"] == DBNull.Value ? 0 : Convert.ToDecimal(v_Data_Reader_d["ORIG_AMOUNT"]);
-                                v_purchase_detail.price_description = Convert.ToString(v_Data_Reader_d["STATUS_DESCRIPTION"]);
+                                v_purchase_detail.price_description = Convert.ToString(v_Data_Reader_d["PRICE_DES"]);
                                 mas_pk_no = v_Data_Reader_d.GetValue(0).ToString();
 
 
@@ -2198,6 +2204,8 @@ select b.PACKAGE_CAT1,
               '信用卡',
               '點數',
               '點數',
+              'iab_tv',
+              'Google Play',
               a.pay_type) pay_type,
        '************' || substr(a.card_no, 13, 4) card_no,
        a.mas_no purchase_id,
