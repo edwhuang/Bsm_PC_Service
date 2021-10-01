@@ -787,7 +787,12 @@
             _MongoDbconnectionStringMaster = _MongoDbconnectionString.Replace("readPreference=SecondaryPreferred", "readPreference=primaryPreferred");
 
            // _MongoDbconnectionStringMaster = "mongodb://172.23.200.107:27017,172.23.200.106:27017/?connect=replicaset;replicaSet=bsmDBrs;slaveOk=true;readPreference=primaryPreferred";
-            _MongoclientMaster = new MongoClient(_MongoDbconnectionStringMaster);
+           
+            MongoClientSettings settings=  MongoClientSettings.FromUrl(new MongoUrl(_MongoDbconnectionStringMaster));
+          
+            _MongoclientMaster = new MongoClient(settings);
+
+ 
             _MongoServerMaster = _MongoclientMaster.GetServer();
             _MongoDBMaster = _MongoServerMaster.GetDatabase(MongoDB_Database + "PCPackageInfo");
             _MongoClientInfoDB = _MongoServerMaster.GetDatabase(MongoDB_Database + "ClientInfo");
@@ -1666,8 +1671,6 @@ select b.PACKAGE_CAT1,
                         else
                         {
                             _a.current_recurrent_status = ((from a in _client_details where a.recurrent == "R" && Array.Exists<string>(l2_packages, eml => eml == a.package_id) select a).Count() > 0) ? "R" : _a.current_recurrent_status;
-                        
-
                         }
                         _a.next_pay_date = (_a.current_recurrent_status == "R") ? end_date : null;
 
