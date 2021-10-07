@@ -22,8 +22,8 @@
     using System.Reflection;
     using MongoDB.Bson;
     using MongoDB.Driver;
-    using MongoDB.Driver.Builders;
-    using MongoDB.Driver.GridFS;
+  //  using MongoDB.Driver.Builders;
+  //  using MongoDB.Driver.GridFS;
     using MongoDB.Driver.Linq;
     using log4net;
     using log4net.Config;
@@ -643,6 +643,7 @@
     {
         public string _id;
         public string package_id;
+        public string proj_no;
         public DateTime start_date;
         public DateTime end_date;
         public JsonObject Option;
@@ -757,15 +758,16 @@
 
         private string _MongoDbconnectionString;
         private MongoClient _Mongoclient;
-        private MongoServer _MongoServer;
-        private MongoDatabase _MongoDB;
+      //  private IMongoServer _MongoServer;
+        private IMongoDatabase _MongoDB;
 
 
         private string _MongoDbconnectionStringMaster;
         private MongoClient _MongoclientMaster;
-        private MongoServer _MongoServerMaster;
-        private MongoDatabase _MongoDBMaster;
-        private MongoDatabase _MongoClientInfoDB;
+        private string _MongoDB_Database;
+       // private MongoServer _MongoServerMaster;
+        private IMongoDatabase _MongoDBMaster;
+        private IMongoDatabase _MongoClientInfoDB;
 
         private account_info _client_info;
         public string acg_url;
@@ -778,11 +780,12 @@
         public BSM_Info_Service_base(string connString, string MongodbConnectString, string MongoDB_Database)
         {
             logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+            _MongoDB_Database = MongoDB_Database;
             _connString = connString;
             _MongoDbconnectionString = MongodbConnectString;
             _Mongoclient = new MongoClient(_MongoDbconnectionString);
-            _MongoServer = _Mongoclient.GetServer();
-            _MongoDB = _MongoServer.GetDatabase(MongoDB_Database + "PCPackageInfo");
+          
+            _MongoDB = _Mongoclient.GetDatabase(MongoDB_Database + "PCPackageInfo");
 
             _MongoDbconnectionStringMaster = _MongoDbconnectionString.Replace("readPreference=SecondaryPreferred", "readPreference=primaryPreferred");
 
@@ -793,9 +796,9 @@
             _MongoclientMaster = new MongoClient(settings);
 
  
-            _MongoServerMaster = _MongoclientMaster.GetServer();
-            _MongoDBMaster = _MongoServerMaster.GetDatabase(MongoDB_Database + "PCPackageInfo");
-            _MongoClientInfoDB = _MongoServerMaster.GetDatabase(MongoDB_Database + "ClientInfo");
+           
+            _MongoDBMaster = _MongoclientMaster.GetDatabase(MongoDB_Database + "PCPackageInfo");
+            _MongoClientInfoDB = _MongoclientMaster.GetDatabase(MongoDB_Database + "ClientInfo");
 
             cht_payments = new Dictionary<string, string>();
             cht_prodduct_code = new Dictionary<string, string>();
@@ -912,7 +915,7 @@
 from service_cat_mas a,bsm_package_service b
 where a.cat_id=b.cat_id and b.status_flg='P'";
                 List<package_service_info> _result = DataReaderToObjectList<package_service_info>(_sql).ToList();
-                _MongoDBMaster.GetCollection<package_service_info>(package_services_colname).InsertBatch(_result);
+                _MongoDBMaster.GetCollection<package_service_info>(package_services_colname).InsertMany(_result);
                 return _result;
             }
             else
@@ -951,17 +954,17 @@ where a.cat_id=b.cat_id and b.status_flg='P'";
                 _data.start_date = Convert.ToDateTime(rd["START_DATE"]);
                 _data.end_date = Convert.ToDateTime(rd["END_DATE"]);
                 _data.Option = (JsonObject)JsonConvert.Import(Convert.ToString(rd["PC_OPTION"]));
-                _collection.Save(_data);
+                _collection.ReplaceOne(doc => doc._id == _data._id, _data, new UpdateOptions { IsUpsert = true });
             };
         }
 
         public void post_package_special()
         {
-            var _collection = _MongoDBMaster.GetCollection<bsm_package_group_special>("bsm_package_special");
+            var _collection = _MongoDBMaster.GetCollection<bsm_package_special>("bsm_package_special");
             bsm_package_special _data = new bsm_package_special();
             connectDB();
 
-            string sql = @"select pk_no id,x.src_id,(start_date+8/24) start_date,(end_date+8/24) end_date,x.pc_option from bsm_package_special_setting x where type = 'PACKAGE' and status_flg in ('P','Z')";
+            string sql = @"select pk_no id,x.src_id,(start_date+8/24) start_date,(end_date+8/24) end_date,x.pc_option,x.proj_no from bsm_package_special_setting x where type = 'PACKAGE' and status_flg in ('P','Z')";
             OracleCommand cmd = new OracleCommand(sql, conn);
             OracleDataReader rd = cmd.ExecuteReader();
             while (rd.Read())
@@ -971,7 +974,8 @@ where a.cat_id=b.cat_id and b.status_flg='P'";
                 _data.start_date = Convert.ToDateTime(rd["START_DATE"]);
                 _data.end_date = Convert.ToDateTime(rd["END_DATE"]);
                 _data.Option = (JsonObject)JsonConvert.Import(Convert.ToString(rd["PC_OPTION"]));
-                _collection.Save(_data);
+                _data.proj_no = Convert.ToString(rd["PROJ_NO"]);
+                _collection.ReplaceOne(dt=>dt._id==_data._id,_data,new UpdateOptions { IsUpsert=true });
             };
         }
 
@@ -1001,8 +1005,7 @@ hide,software_group,sort_no from bsm_package_group_mas a order by sort_no";
                             a.suggest_service_list.Add(_b);
                         }
                     a.suggest_services = null;
-                    _MongoDBMaster.GetCollection<package_group>(package_group_colname).Save(a);
-
+                    _MongoDBMaster.GetCollection<package_group>(package_group_colname).ReplaceOne(doc=>doc._id==a._id,a, new UpdateOptions { IsUpsert = true });
                 }
 
                 return _result;
@@ -1366,7 +1369,7 @@ select b.PACKAGE_CAT1,
                     _result.Add(_package_option);
 
                 }
-                _MongoDBMaster.GetCollection<package_option>(package_options_colname).InsertBatch(_result);
+                _MongoDBMaster.GetCollection<package_option>(package_options_colname).InsertMany(_result);
             }
 
 
@@ -1561,7 +1564,7 @@ select b.PACKAGE_CAT1,
                     v_result.Add(v_package_info);
 
                 }
-                _MongoDBMaster.GetCollection<package_info>(packages_colname).InsertBatch(v_result);
+                _MongoDBMaster.GetCollection<package_info>(packages_colname).InsertMany(v_result);
             }
             else
             {
@@ -1589,7 +1592,7 @@ select b.PACKAGE_CAT1,
 
                 OracleDataReader rd = _cmd.ExecuteReader();
                 List<package_sg_info> all_package_sg_info = DataReaderToObjectList<package_sg_info>(rd).ToList();
-                _MongoDBMaster.GetCollection<package_sg_info>(sg_package_colname).InsertBatch(all_package_sg_info);
+                _MongoDBMaster.GetCollection<package_sg_info>(sg_package_colname).InsertMany(all_package_sg_info);
 
                 List<package_sg_info> _result = (from a in all_package_sg_info where a.software_group == sw_group && (a.version == null || String.Compare(a.version, sw_version) >= 0) && (a.version_end == null || String.Compare(a.version_end, sw_version) <= 0) select a).ToList();
                 return _result;
@@ -1771,8 +1774,9 @@ select b.PACKAGE_CAT1,
                         logger.Info(e.Message);
                     }
                     package.Add("options", _opa);
-
-                    List<bsm_package_special> specials = (from c in _all_special where c.package_id == item.package_id && (DateTime.Compare(c.start_date, DateTime.Now) <= 0 && DateTime.Compare(DateTime.Now, c.end_date) <= 0) select c).ToList();
+                if (sw_version == null) { sw_version = "LTWEB000000"; }
+                List<bsm_package_special> specials = (from c in _all_special where c.package_id == item.package_id && (DateTime.Compare(c.start_date, DateTime.Now) <= 0 && DateTime.Compare(DateTime.Now, c.end_date) <= 0) && (c.proj_no == "" || c.proj_no == sw_version.Substring(0, 7)) orderby  c.proj_no select c).ToList();
+//               List<bsm_package_special> specials = (from c in _all_special where c.package_id == item.package_id && (DateTime.Compare(c.start_date, DateTime.Now) <= 0 && DateTime.Compare(DateTime.Now, c.end_date) <= 0) orderby c.proj_no select c ).ToList();
                     foreach (var special in specials)
                     {
                         JsonObject _option = special.Option;
@@ -3909,7 +3913,7 @@ select t2.package_id,
 
         public void refresh()
         {
-            _MongoDBMaster.Drop();
+            _MongoclientMaster.DropDatabase(_MongoDB_Database + "PCPackageInfo");
         }
 
         private void init_cht_parame()
@@ -3936,7 +3940,7 @@ select t2.package_id,
                 string _sql = @"Select cht_payment_method||'+'||package_id ""_id"",package_id,cht_product_id cht_product_code,cht_payment_method cht_paymethod from BSM_CHT_MAP";
                 d_list = DataReaderToObjectList<cht_prodduct_code>(_sql).ToList();
 
-                _MongoDBMaster.GetCollection<cht_prodduct_code>(cht_product_codes_colname).InsertBatch(d_list);
+                _MongoDBMaster.GetCollection<cht_prodduct_code>(cht_product_codes_colname).InsertMany(d_list);
             }
 
             foreach (var a in d_list)
@@ -3966,7 +3970,7 @@ select t2.package_id,
         {
             connectDB();
             var promo_product_collection = _MongoDBMaster.GetCollection<promotion_product>("promo_product_collection");
-            promo_product_collection.Drop();
+            _MongoDBMaster.DropCollection("promo_product_collection");
 
             try
             {
@@ -4014,7 +4018,7 @@ from STK_PACKAGE_ITEM a where a.PACKAGE_ID=:P_PACKAGE_ID";
                 }
                 if (_l_promo_p.Count() > 0)
                 {
-                    promo_product_collection.InsertBatch(_l_promo_p);
+                    promo_product_collection.InsertMany(_l_promo_p);
                 }
 
             }
@@ -4028,9 +4032,12 @@ from STK_PACKAGE_ITEM a where a.PACKAGE_ID=:P_PACKAGE_ID";
             JsonObject _rs = new JsonObject();
             var promo_product_collection = _MongoDBMaster.GetCollection<promotion_product>("promo_product_collection");
             promotion_product _result_pl = new promotion_product();
-            var _q = Query.EQ("_id", promotion_code);
-
-            _result_pl = promo_product_collection.FindOne(_q);
+            // var _q = Query.EQ("_id", promotion_code);
+            //
+            try
+            {
+                _result_pl = promo_product_collection.Find(doc => doc._id == promotion_code).First();
+            }catch(Exception e){ _result_pl = null; }
             if (_result_pl != null)
             {
 
@@ -4063,13 +4070,11 @@ from STK_PACKAGE_ITEM a where a.PACKAGE_ID=:P_PACKAGE_ID";
 
         public void set_all_promotion_code()
         {
-            var promotion_code_collection = _MongoDBMaster.GetCollection<promotion_info>("promotion_collection");
-            promotion_code_collection.Drop();
-            var promotion_client_collection = _MongoDBMaster.GetCollection<promotion_info>("promotion_client_collection");
-            promotion_client_collection.Drop();
-
-            var promotion_prog_collection = _MongoDBMaster.GetCollection<promotion_code_prog>("promotion_prog_collection");
-            promotion_prog_collection.Drop();
+          
+            _MongoDBMaster.DropCollection("promotion_collection");
+            _MongoDBMaster.DropCollection("promotion_client_collection");
+            _MongoDBMaster.DropCollection("promotion_prog_collection");
+            IMongoCollection<promotion_code_prog> promotion_prog_collection = _MongoDBMaster.GetCollection<promotion_code_prog>("promotion_prog_collection");
 
             connectDB();
 
@@ -4108,7 +4113,7 @@ where c.promo_prog_id=b.promo_prog_id and d.package_id(+)=b.discount_package_id"
                 }
                 if (_l_promo.Count > 0)
                 {
-                    promotion_prog_collection.InsertBatch(_l_promo);
+                    promotion_prog_collection.InsertMany(_l_promo);
                 }
             }
             finally
@@ -4123,7 +4128,7 @@ where c.promo_prog_id=b.promo_prog_id and d.package_id(+)=b.discount_package_id"
         public void set_promotion_code(string client_id)
         {
             var promotion_code_collection = _MongoDBMaster.GetCollection<promotion_code>("promotion_collection");
-            var promotion_client_collection = _MongoDBMaster.GetCollection<promotion_info>("promotion_client_collection");
+            var promotion_client_collection = _MongoDBMaster.GetCollection<promotion_clients>("promotion_client_collection");
             connectDB();
 
             try
@@ -4166,7 +4171,7 @@ where a.STATUS_FLG='P'";
 
                     if (client_id != null)
                     {
-                        promotion_code_collection.Save(_promotion_info);
+                        promotion_code_collection.ReplaceOne(doc=>doc._id==_promotion_info._id, _promotion_info, new UpdateOptions { IsUpsert = true});
                     }
 
                     _l_promo.Add(_promotion_info);
@@ -4175,7 +4180,7 @@ where a.STATUS_FLG='P'";
 
                 if (client_id == null)
                 {
-                    promotion_code_collection.InsertBatch(_l_promo);
+                    promotion_code_collection.InsertMany(_l_promo);
                 }
 
                 string _sql_client = @"SELECT PROMO_CODE,CLIENT_ID,STATUS_FLG FROM BSM_PROMOTION_CLIENTS WHERE 1=1";
@@ -4198,7 +4203,7 @@ where a.STATUS_FLG='P'";
                             _promo_clients.status_flg = true;
                         }
                         _promo_clients._id = _promo_clients.promo_code + "+" + _promo_clients.client_id;
-                        promotion_client_collection.Save(_promo_clients);
+                        promotion_client_collection.ReplaceOne(a=>a._id==_promo_clients._id, _promo_clients, new UpdateOptions { IsUpsert = true });
                       //  _l_promo_cliens.Add(_promo_clients);
                     }
                   //  if (_l_promo_cliens.Count > 0)
@@ -4217,14 +4222,14 @@ where a.STATUS_FLG='P'";
         {
             List<promotion_code> _promo_code = new List<promotion_code>();
             var promotion_code_collection = _MongoDB.GetCollection<promotion_code>("promotion_collection");
-            var query = Query.EQ("_id", promotion_code);
-            _promo_code = promotion_code_collection.Find(query).ToList();
+           // var query = Query.EQ("_id", promotion_code);
+            _promo_code = promotion_code_collection.Find(a=>a._id== promotion_code).ToList();
             List<promotion_info> _result = new List<promotion_info>();
             foreach (var _c in _promo_code)
             {
                 var promotion_prog_collection = _MongoDB.GetCollection<promotion_code_prog>("promotion_prog_collection");
-                var query2 = Query.EQ("promo_prog_id", _c.promo_prog_id);
-                List<promotion_code_prog> _prog = promotion_prog_collection.Find(query2).ToList();
+               // var query2 = Query.EQ("promo_prog_id", _c.promo_prog_id);
+                List<promotion_code_prog> _prog = promotion_prog_collection.Find(a=>a.promo_prog_id == _c.promo_prog_id).ToList();
                 foreach (var _p in _prog)
                 {
                     promotion_info _r = new promotion_info();
@@ -4258,8 +4263,8 @@ where a.STATUS_FLG='P'";
             List<promotion_clients> lc = new List<promotion_clients>();
 
             var promotion_client_collection = _MongoDB.GetCollection<promotion_clients>("promotion_client_collection");
-            var query = Query.And(Query.EQ("promo_code", promo_code), Query.EQ("client_id", client_id));
-            lc = promotion_client_collection.Find(query).ToList();
+          //  var query = Query.And(Query.EQ("promo_code", promo_code), Query.EQ("client_id", client_id));
+            lc = promotion_client_collection.Find(a=>a.promo_code== promo_code && a.client_id==client_id).ToList();
             return lc;
 
         }
@@ -4276,13 +4281,13 @@ where a.STATUS_FLG='P'";
             account_info _cp = new account_info();
             string client_purchase_colname = "account_info";
             var bsm_purchase_collection = _MongoClientInfoDB.GetCollection<account_info>(client_purchase_colname);
-            var query = Query.EQ("_id", client_id);
+          //  var query = Query.EQ("_id", client_id);
 
             if (!refresh)
             {
                 try
                 {
-                    _cp = bsm_purchase_collection.FindOne(query);
+                    _cp = bsm_purchase_collection.Find(a => a._id == client_id).First();
                 }
                 catch (Exception e)
                 {
@@ -4303,7 +4308,7 @@ where a.STATUS_FLG='P'";
                 _cp.purchase_dtls = this.get_purchase_info_oracle(client_id);
                 try
                 {
-                    _MongoClientInfoDB.GetCollection<account_info>(client_purchase_colname).Save(_cp);
+                    _MongoClientInfoDB.GetCollection<account_info>(client_purchase_colname).ReplaceOne(a=>a._id==_cp._id,_cp, new UpdateOptions { IsUpsert = true });
                 }
                 catch (Exception e)
                 {
@@ -4324,7 +4329,8 @@ where a.STATUS_FLG='P'";
             OracleDataReader _rd = _cmd.ExecuteReader();
             string client_purchase_colname = "client_purchase";
             var bsm_purchase_collection = _MongoClientInfoDB.GetCollection<client_info>(client_purchase_colname);
-            bsm_purchase_collection.Drop();
+            _MongoClientInfoDB.DropCollection(client_purchase_colname);
+          //  bsm_purchase_collection.Drop();
             List<client_info> _lc = new List<client_info>();
 
             while (_rd.Read())
@@ -4339,7 +4345,7 @@ where a.STATUS_FLG='P'";
             {
                 _a.purchase_info = this.get_purchase_info(_a._id, null, null);
                 _a.client_details = this.get_client_detail(_a._id, null);
-                bsm_purchase_collection.Save(_a);
+                bsm_purchase_collection.ReplaceOne(a=>a._id==_a._id,_a, new UpdateOptions { IsUpsert = true });
             }
             return null;
         }
@@ -4459,8 +4465,8 @@ where a.STATUS_FLG='P'";
             {
                 List<promotion_code> promcodelist = new List<promotion_code>();
                 var promotion_code_collection = _MongoDB.GetCollection<promotion_code>("promotion_collection");
-                var query = Query.EQ("owner", client_id);
-                promcodelist = promotion_code_collection.Find(query).ToList();
+               // var query = Query.EQ("owner", client_id);
+                promcodelist = promotion_code_collection.Find(a=>a.owner==client_id).ToList();
                 _result.Add("promo_codes", promcodelist);
             }
             return _result;
@@ -4565,7 +4571,7 @@ where a.STATUS_FLG='P'";
                 acg_log.url = url;
                 acg_log.request = _post_data;
                 acg_log.result = _result;
-                acg_collection.Save(acg_log);
+                acg_collection.ReplaceOne(a=>a._id==acg_log._id, acg_log, new UpdateOptions { IsUpsert = true });
 
 
                 return _result;
@@ -4587,7 +4593,7 @@ where a.STATUS_FLG='P'";
                 acg_log.request = _post_data;
                 acg_log.result = e.Message;
                 acg_log.status = "F";
-                acg_collection.Save(acg_log);
+                acg_collection.ReplaceOne(a=>a._id==acg_log._id,acg_log, new UpdateOptions { IsUpsert = true });
                 }
                 return e.Message;
             }

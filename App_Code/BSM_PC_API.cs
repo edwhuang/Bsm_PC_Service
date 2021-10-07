@@ -18,8 +18,8 @@ using BsmDatabaseObjects;
 using BSM_Info;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using MongoDB.Driver.Builders;
-using MongoDB.Driver.GridFS;
+//using MongoDB.Driver.Builders;
+//using MongoDB.Driver.GridFS;
 using MongoDB.Driver.Linq;
 
 using log4net;
@@ -60,8 +60,7 @@ namespace BSMPCService
         private string PrimaryMongoDB_Database;
         private string ReadMongoDBConnectString;
         private MongoClient ReadMongoclient;
-        private MongoServer ReadMongoServer;
-        private MongoDatabase ReadMongoDB;
+        private IMongoDatabase ReadMongoDB;
         public bsm_pc_api()
         {
             System.Configuration.Configuration rootWebConfig =
@@ -74,8 +73,7 @@ namespace BSMPCService
                 ReadMongoDBConnectString = rootWebConfig.ConnectionStrings.ConnectionStrings["MongoDb"].ToString();
                 String DBName = "PCDB";
                 ReadMongoclient = new MongoClient(ReadMongoDBConnectString);
-                ReadMongoServer = ReadMongoclient.GetServer();
-                ReadMongoDB = ReadMongoServer.GetDatabase(PrimaryMongoDB_Database + DBName);
+                ReadMongoDB = ReadMongoclient.GetDatabase(PrimaryMongoDB_Database + DBName);
             }
         }
 
@@ -85,24 +83,22 @@ namespace BSMPCService
         {
             promo_coupon _result = new promo_coupon();
             MongoClient _MongoclientMaster;
-            MongoServer _MongoServerMaster;
-            MongoDatabase _MongoDBMaster;
+            //MongoServer _MongoServerMaster;
+            IMongoDatabase _MongoDBMaster;
             String DBName = "PCDB";
             String CouponCollectionName = "promo_coupons";
             _MongoclientMaster = new MongoClient(PrimaryMongoDBConnectString);
-            _MongoServerMaster = _MongoclientMaster.GetServer();
-            _MongoDBMaster = _MongoServerMaster.GetDatabase(PrimaryMongoDB_Database + DBName);
+           // _MongoServerMaster = _MongoclientMaster.GetServer();
+            _MongoDBMaster = _MongoclientMaster.GetDatabase(PrimaryMongoDB_Database + DBName);
 
-            MongoCollection<promo_coupon> promo_coupon_collection = _MongoDBMaster.GetCollection<promo_coupon>(CouponCollectionName);
+            IMongoCollection<promo_coupon> promo_coupon_collection = _MongoDBMaster.GetCollection<promo_coupon>(CouponCollectionName);
 
             promo_coupon _t1 = new promo_coupon();
             _t1._id = "1321321312312";
             _t1.coupon_id = "321321312312";
             _t1.booking_flg = false;
 
-            promo_coupon_collection.Save(_t1);
-            
-   
+            var unused = promo_coupon_collection.ReplaceOneAsync(doc => doc._id == _t1._id, _t1, new UpdateOptions { IsUpsert = true });
 
             return null;
         }
@@ -114,22 +110,31 @@ namespace BSMPCService
         {
             JsonObject _result = new JsonObject();
             MongoClient _MongoclientMaster;
-            MongoServer _MongoServerMaster;
-            MongoDatabase _MongoDBMaster;
+            //MongoServer _MongoServerMaster;
+            IMongoDatabase _MongoDBMaster;
             String DBName = "PCDB";
             String CouponCollectionName = "promo_coupons";
             _MongoclientMaster = new MongoClient(PrimaryMongoDBConnectString);
-            _MongoServerMaster = _MongoclientMaster.GetServer();
-            _MongoDBMaster = _MongoServerMaster.GetDatabase(PrimaryMongoDB_Database + DBName);
+            //_MongoServerMaster = _MongoclientMaster.GetServer();
+            _MongoDBMaster = _MongoclientMaster.GetDatabase(PrimaryMongoDB_Database + DBName);
 
-            MongoCollection<promo_coupon> promo_coupon_collection = _MongoDBMaster.GetCollection<promo_coupon>(CouponCollectionName);
-            var query = Query.EQ("account_key", account_key);
-            promo_coupon _promo_coupon = promo_coupon_collection.FindOne(query);
+            IMongoCollection<promo_coupon> promo_coupon_collection = _MongoDBMaster.GetCollection<promo_coupon>(CouponCollectionName);
+            //  var query = Query.EQ("account_key", account_key);
+            promo_coupon _promo_coupon;
+            try
+            {
+                _promo_coupon = promo_coupon_collection.Find(doc => doc.account_key == account_key).First();
+            } catch(Exception e) { _promo_coupon = null; }
             if (_promo_coupon == null)
             {
                 DateTime _now = DateTime.Now;
-                var _query = Query.EQ("booking_flg", false);
-                _promo_coupon = promo_coupon_collection.FindOne(_query);
+                //  var _query = Query.EQ("booking_flg", false);
+                try
+                {
+                    _promo_coupon = promo_coupon_collection.Find(a => a.booking_flg == false).First();
+                    _promo_coupon = promo_coupon_collection.Find(a => a.booking_flg == false).First();
+                }
+                catch (Exception e) { _promo_coupon = null; }
                 if (_promo_coupon != null)
                 {
                     _promo_coupon.account_key = account_key;
@@ -140,7 +145,7 @@ namespace BSMPCService
                     _result.Add("coupon_id", _promo_coupon.coupon_id);
                     _result.Add("account_key", _promo_coupon.account_key);
                     _result.Add("booking_date", _promo_coupon.booking_flg);
-                    promo_coupon_collection.Save(_promo_coupon);
+                    promo_coupon_collection.ReplaceOneAsync(doc => doc._id == _promo_coupon._id, _promo_coupon, new UpdateOptions { IsUpsert = true });
                 }
                 else
                 {
@@ -168,9 +173,9 @@ namespace BSMPCService
         public List<bank_credit>  get_bank_creditno(string bank_code)
         {
             JsonArray _result = new JsonArray();
-            MongoCollection<bank_credit> _bank_credit_col = ReadMongoDB.GetCollection<bank_credit>("bank_credit");
-            var qry = Query.EQ("bank_code", bank_code);
-            List<bank_credit> _rs = _bank_credit_col.Find(qry).ToList();
+            IMongoCollection<bank_credit> _bank_credit_col = ReadMongoDB.GetCollection<bank_credit>("bank_credit");
+          //  var qry = Query.EQ("bank_code", bank_code);
+            List<bank_credit> _rs = _bank_credit_col.Find(a=>a.bank_code== bank_code).ToList();
             return _rs;
 
         }
