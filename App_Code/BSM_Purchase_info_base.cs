@@ -1857,11 +1857,14 @@ select b.PACKAGE_CAT1,
         public JsonObject get_package_info_by_id(string client_id, string system_type, int? min_credits, string device_id, string package_id, string sw_version)
         {
             system_type = system_type ?? "BUY";
-            JsonArray v_result = get_package_info(client_id, "BUY", min_credits, device_id, null, null, sw_version);
-            JsonObject result = new JsonObject();
+            JsonArray v_result;
+            JsonObject result ;
+            result = null;
 
             if (package_id != null)
             {
+                 v_result = get_package_info(client_id, "BUY", min_credits, device_id, null, null, sw_version);
+
                 foreach (JsonObject a in v_result)
                 {
                     if (a["package_id"].ToString() == package_id)
@@ -1869,6 +1872,20 @@ select b.PACKAGE_CAT1,
                         result = a;
                     }
 
+                }
+
+                if (result == null)
+                {
+                    v_result = get_package_info(client_id, "BUY", min_credits, device_id, null, null, null);
+
+                    foreach (JsonObject a in v_result)
+                    {
+                        if (a["package_id"].ToString() == package_id)
+                        {
+                            result = a;
+                        }
+
+                    }
                 }
             }
             JsonObject _result = result;
