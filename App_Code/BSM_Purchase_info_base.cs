@@ -1718,7 +1718,7 @@ select b.PACKAGE_CAT1,
 
             v_result = all_packages;
             JsonObject package = new JsonObject();
-            JsonArray _result_a = new JsonArray();
+            List<JsonObject> _result_a = new List<JsonObject>();
            
                 foreach (var item in all_packages)
                 {
@@ -1794,10 +1794,14 @@ select b.PACKAGE_CAT1,
                     }
                     _result_a.Add(package);
                 }
-            
+
+            _result_a = (from x in _result_a orderby Convert.ToInt64(x["display_order"]), x["package_id"].ToString() select x).ToList();
+            JsonArray json_a = new JsonArray();
+            foreach (var a in _result_a) json_a.Add(a);
 
             logger.Info(JsonConvert.ExportToString(v_result));
-            return new JsonArray(_result_a);
+
+            return json_a;
         }
 
         /// <summary>
